@@ -1,131 +1,69 @@
-<!doctype html>
-<html lang="ko">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <meta name="theme-color" content="#f7f7f5" />
-  <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-  <meta name="apple-mobile-web-app-title" content="OPIc Context" />
-  <link rel="apple-touch-icon" href="icon-192.png" />
-  <link rel="manifest" href="manifest.webmanifest" />
-  <link rel="stylesheet" href="style.css" />
-  <title>OPIc Context</title>
-</head>
-<body>
-  <div id="app">
-    <header class="topbar">
-      <div>
-        <p class="eyebrow">CONTEXT VOCAB</p>
-        <h1 id="pageTitle">오늘의 학습</h1>
-      </div>
-      <button class="icon-btn" id="themeBtn" aria-label="테마 변경">◐</button>
-    </header>
+<!doctype html><html lang="ko"><head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#f6f6f2"><meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default"><meta name="apple-mobile-web-app-title" content="OPIc Context">
+<link rel="apple-touch-icon" href="icon-192.png"><link rel="manifest" href="manifest.webmanifest">
+<link rel="stylesheet" href="style.css"><title>OPIc Context Final</title></head><body>
+<div id="app">
+<header class="topbar"><div><p class="eyebrow">OPIC CONTEXT</p><h1 id="pageTitle">오늘의 학습</h1></div><button class="icon-btn" id="themeBtn">◐</button></header>
+<main>
+<section id="homeView" class="view active">
+ <div class="hero-card"><p class="mini">오늘의 목표</p><h2><span id="dueToday">20</span>개 표현을<br>말로 꺼내보세요</h2>
+ <div class="hero-actions"><button class="primary" id="startDaily">오늘 학습 시작</button><button class="ghost" id="startSRS">복습 예정 카드</button></div></div>
+ <div class="stats-grid"><article><strong id="statTotal">0</strong><span>전체 카드</span></article><article><strong id="statWrong">0</strong><span>오답 카드</span></article><article><strong id="statRate">0%</strong><span>정답률</span></article></div>
+ <div class="section-head"><h3>학습 모드</h3></div>
+ <div class="quick-grid">
+  <button class="quick" data-mode="all"><b>전체 랜덤</b><span>모든 표현</span></button>
+  <button class="quick" data-mode="wrong"><b>오답 복습</b><span>오답 목록</span></button>
+  <button class="quick" data-mode="favorite"><b>즐겨찾기</b><span>저장한 표현</span></button>
+  <button class="quick" data-mode="hard"><b>자주 틀린 순</b><span>기록 유지</span></button>
+  <button class="quick" data-mode="unseen"><b>미학습</b><span>처음 보는 표현</span></button>
+  <button class="quick" id="mockQuick"><b>실전 모의시험</b><span>질문 듣고 녹음</span></button>
+ </div>
+ <div class="section-head"><h3>카테고리</h3><button class="text-btn" id="seeAll">전체 목록</button></div><div id="categoryChips" class="chips"></div>
+</section>
 
-    <main>
-      <section id="homeView" class="view active">
-        <div class="hero-card">
-          <div>
-<h2>문맥으로 익히는<br>오픽 핵심 표현</h2>
-            <p>한국어 문장의 강조 표현을 보고 영어로 말해보세요.</p>
-          </div>
-          <button class="primary big" id="startDaily">오늘 20문제 시작</button>
-        </div>
-        <div class="stats-grid">
-          <article><strong id="statTotal">0</strong><span>전체 카드</span></article>
-          <article><strong id="statWrong">0</strong><span>오답 카드</span></article>
-          <article><strong id="statCorrect">0%</strong><span>누적 정답률</span></article>
-        </div>
-        <div class="section-head"><h3>빠른 학습</h3></div>
-        <div class="quick-grid">
-          <button class="quick" data-mode="all"><b>전체 랜덤</b><span>모든 카테고리</span></button>
-          <button class="quick" data-mode="wrong"><b>오답 복습</b><span>틀린 카드만</span></button>
-          <button class="quick" data-mode="favorite"><b>즐겨찾기</b><span>저장한 표현</span></button>
-          <button class="quick" data-mode="hard"><b>자주 틀린 순</b><span>약점 집중</span></button>
-        </div>
-        <div class="section-head"><h3>카테고리</h3><button class="text-btn" id="seeAllCategories">전체 보기</button></div>
-        <div id="categoryChips" class="chips"></div>
-      </section>
+<section id="quizView" class="view">
+ <div class="quiz-top"><button id="quizBack" class="back-btn">‹</button><div class="progress-wrap"><div id="progressBar"></div></div><span id="quizCount"></span></div>
+ <div class="quiz-meta"><span id="quizCategory"></span><div><button id="speakBtn" class="round-btn">🔊</button><button id="favoriteBtn" class="star">☆</button></div></div>
+ <article class="flashcard" id="flashcard"><p class="hint">강조된 표현을 영어로 말해보세요</p><h2 id="koreanSentence"></h2>
+  <div id="speechBox" class="speech-box hidden"><p>내가 말한 내용</p><div id="speechText">듣는 중...</div></div>
+  <div id="answerArea" class="answer-area hidden"><div class="divider"></div><p class="answer-label">추천 답</p><h3 id="answerWord"></h3><p id="englishSentence"></p><p id="answerNote" class="note"></p></div>
+  <div class="card-actions"><button id="micBtn" class="mic">🎙 말해보기</button><button id="revealBtn" class="reveal">정답 보기</button></div>
+ </article>
+ <div class="grade-row hidden" id="gradeRow"><button id="wrongBtn" class="wrong-btn">✕ 틀렸어요</button><button id="correctBtn" class="correct-btn">✓ 맞았어요</button></div>
+ <div class="nav-row"><button id="prevBtn">이전</button><button id="nextBtn">다음</button></div>
+</section>
 
-      <section id="quizView" class="view">
-        <div class="quiz-top">
-          <button class="back-btn" id="quizBack">‹</button>
-          <div class="progress-wrap"><div id="progressBar"></div></div>
-          <span id="quizCount">1/20</span>
-        </div>
-        <div class="quiz-meta"><span id="quizCategory"></span><button id="favoriteBtn" class="star">☆</button></div>
-        <article class="flashcard" id="flashcard">
-          <p class="hint">빨간 표현을 영어로 말해보세요</p>
-          <h2 id="koreanSentence"></h2>
-          <div id="answerArea" class="answer-area hidden">
-            <div class="divider"></div>
-            <p class="answer-label">정답</p>
-            <h3 id="answerWord"></h3>
-            <p id="englishSentence"></p>
-            <p id="answerNote" class="note"></p>
-          </div>
-          <button id="revealBtn" class="reveal">탭해서 정답 보기</button>
-        </article>
-        <div class="grade-row hidden" id="gradeRow">
-          <button class="wrong-btn" id="wrongBtn">✕ 틀렸어요</button>
-          <button class="correct-btn" id="correctBtn">✓ 맞았어요</button>
-        </div>
-        <div class="nav-row">
-          <button id="prevBtn">이전</button>
-          <button id="nextBtn">다음</button>
-        </div>
-      </section>
+<section id="listView" class="view"><div class="search-box"><span>⌕</span><input id="searchInput" placeholder="한국어·영어 검색"></div>
+<div class="filter-row"><select id="categoryFilter"></select><select id="statusFilter"><option value="all">전체 상태</option><option value="wrong">오답</option><option value="favorite">즐겨찾기</option><option value="unseen">미학습</option><option value="due">복습 예정</option></select></div>
+<p id="listCount" class="list-count"></p><div id="cardList" class="card-list"></div></section>
 
-      <section id="listView" class="view">
-        <div class="search-box"><span>⌕</span><input id="searchInput" placeholder="한국어·영어 표현 검색"></div>
-        <div class="filter-row">
-          <select id="categoryFilter"><option value="all">전체 카테고리</option></select>
-          <select id="statusFilter">
-            <option value="all">전체 상태</option><option value="wrong">오답</option>
-            <option value="favorite">즐겨찾기</option><option value="unseen">미학습</option>
-          </select>
-        </div>
-        <p id="listCount" class="list-count"></p>
-        <div id="cardList" class="card-list"></div>
-      </section>
+<section id="wrongView" class="view"><div id="wrongEmpty" class="empty-card"><div class="empty-icon">✓</div><h2>복습할 오답이 없어요</h2><p>틀린 카드가 여기에 모입니다.</p></div>
+<div id="wrongContent" class="hidden"><div class="wrong-summary"><div><span>오답 복습 목록</span><strong id="wrongTotal"></strong></div><button id="startWrong" class="primary">오답 시험</button></div><div id="wrongList" class="card-list"></div></div></section>
 
-      <section id="wrongView" class="view">
-        <div class="empty-card" id="wrongEmpty">
-          <div class="empty-icon">✓</div><h2>아직 오답이 없어요</h2>
-          <p>시험에서 ‘틀렸어요’를 누르면 이곳에 자동으로 모여요.</p>
-        </div>
-        <div id="wrongContent" class="hidden">
-          <div class="wrong-summary"><div><span>오답 카드</span><strong id="wrongTotal">0개</strong></div>
-          <button class="primary" id="startWrong">오답 시험</button></div>
-          <div id="wrongList" class="card-list"></div>
-        </div>
-      </section>
+<section id="mockView" class="view">
+ <div class="mock-head"><span id="mockCount">1/5</span><button id="mockExit">종료</button></div>
+ <article class="mock-card"><p class="eyebrow">OPIC MOCK TEST</p><h2 id="mockQuestion"></h2><p id="mockGuide"></p>
+ <div class="timer" id="mockTimer">01:30</div><div class="wave">▁▃▅▂▆▃▁</div>
+ <button id="recordBtn" class="record-btn">● 녹음 시작</button><audio id="playback" controls class="hidden"></audio>
+ <div class="mock-actions"><button id="mockPrev">이전</button><button id="mockNext">다음 질문</button></div></article>
+</section>
 
-      <section id="settingsView" class="view">
-        <div class="settings-group">
-          <h3>학습 데이터</h3>
-          <button id="exportBtn"><span>데이터 백업</span><small>진도·오답·즐겨찾기 JSON 저장</small></button>
-          <label class="file-label"><span>데이터 복원</span><small>백업 JSON 불러오기</small><input id="importInput" type="file" accept=".json"></label>
-          <button id="resetBtn" class="danger"><span>학습 기록 초기화</span><small>기본 단어 데이터는 유지됩니다</small></button>
-        </div>
-        <div class="settings-group">
-          <h3>앱 정보</h3>
-          <div class="info-row"><span>내장 카드</span><b id="settingsTotal"></b></div>
-          <div class="info-row"><span>저장 방식</span><b>기기 내부 저장</b></div>
-          <div class="info-row"><span>인터넷</span><b>설치 후 오프라인 가능</b></div>
-        </div>
-      </section>
-    </main>
+<section id="statsView" class="view">
+ <div class="big-stat"><span>누적 학습</span><strong id="learnedCount">0</strong><small>개 카드</small></div>
+ <div class="stats-list"><div><span>총 정답</span><b id="totalCorrect">0</b></div><div><span>총 오답</span><b id="totalWrong">0</b></div><div><span>현재 연속 학습</span><b id="streak">0일</b></div><div><span>복습 예정</span><b id="dueCount">0개</b></div></div>
+ <div class="section-head"><h3>카테고리별 학습률</h3></div><div id="categoryStats"></div>
+</section>
 
-    <nav class="bottom-nav">
-      <button data-view="homeView" class="active"><span>⌂</span><b>홈</b></button>
-      <button data-view="listView"><span>▤</span><b>전체</b></button>
-      <button id="navQuiz"><span>▶</span><b>시험</b></button>
-      <button data-view="wrongView"><span>↻</span><b>오답</b></button>
-      <button data-view="settingsView"><span>⚙</span><b>설정</b></button>
-    </nav>
-  </div>
-  <script src="data.js"></script>
-  <script src="app.js"></script>
-</body>
-</html>
+<section id="settingsView" class="view">
+ <div class="settings-group"><h3>학습 설정</h3><label class="range-row"><span>오늘의 문제 수 <b id="dailyValue">20</b></span><input id="dailyRange" type="range" min="10" max="50" step="5" value="20"></label>
+ <button id="autoSpeechBtn"><span>정답 음성 자동 재생</span><small id="autoSpeechText">꺼짐</small></button></div>
+ <div class="settings-group"><h3>데이터</h3><button id="exportBtn"><span>백업 파일 저장</span><small>진도·오답·즐겨찾기·복습 일정</small></button>
+ <label class="file-label"><span>백업 복원</span><small>JSON 파일 불러오기</small><input id="importInput" type="file" accept=".json"></label>
+ <button id="resetBtn" class="danger"><span>학습 기록 초기화</span><small>기본 표현은 유지됩니다</small></button></div>
+ <div class="settings-group"><h3>앱 정보</h3><div class="info-row"><span>내장 카드</span><b id="settingsTotal"></b></div><div class="info-row"><span>서버·로그인</span><b>사용하지 않음</b></div><div class="info-row"><span>저장 위치</span><b>현재 기기</b></div></div>
+</section>
+</main>
+<nav class="bottom-nav"><button data-view="homeView" class="active"><span>⌂</span><b>홈</b></button><button data-view="listView"><span>▤</span><b>전체</b></button><button id="navQuiz"><span>▶</span><b>시험</b></button><button data-view="wrongView"><span>↻</span><b>오답</b></button><button data-view="statsView"><span>▥</span><b>통계</b></button><button data-view="settingsView"><span>⚙</span><b>설정</b></button></nav>
+</div><script src="data.js"></script><script src="app.js"></script></body></html>

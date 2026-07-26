@@ -1,82 +1,62 @@
-const cards=window.OPIC_CARDS;
-const state=JSON.parse(localStorage.getItem("opic-state")||'{"results":{},"favorites":[],"dismissedWrong":[],"dark":false}');
-state.dismissedWrong=state.dismissedWrong||[];
-let quiz=[],qIndex=0,revealed=false,quizMode="all";
-const $=s=>document.querySelector(s), $$=s=>document.querySelectorAll(s);
-function save(){localStorage.setItem("opic-state",JSON.stringify(state))}
-function result(id){return state.results[id]||{correct:0,wrong:0}}
-function markText(card){return card.korean.replace(card.target,`<span class="target">${card.target}</span>`)}
+const cards=window.OPIC_CARDS, mockQuestions=window.MOCK_QUESTIONS;
+const defaultState={results:{},favorites:[],dismissedWrong:[],schedule:{},dark:false,daily:20,autoSpeech:false,studyDates:[]};
+const state=Object.assign({},defaultState,JSON.parse(localStorage.getItem("opic-final-state")||"{}"));
+state.results=state.results||{};state.favorites=state.favorites||[];state.dismissedWrong=state.dismissedWrong||[];state.schedule=state.schedule||{};state.studyDates=state.studyDates||[];
+let quiz=[],qIndex=0,quizMode="all",revealed=false,mediaRecorder=null,chunks=[],mockIndex=0,timerId=null,timeLeft=90;
+const $=s=>document.querySelector(s),$$=s=>document.querySelectorAll(s),today=()=>new Date().toISOString().slice(0,10);
+function save(){localStorage.setItem("opic-final-state",JSON.stringify(state))}
+function res(id){return state.results[id]||{correct:0,wrong:0}}
+function mark(c){return c.korean.replace(c.target,`<span class="target">${c.target}</span>`)}
+function due(c){return !state.schedule[c.id]||state.schedule[c.id]<=Date.now()}
+function recordStudy(){const t=today();if(!state.studyDates.includes(t)){state.studyDates.push(t);save()}}
+function updateSchedule(id,ok){const cur=state.schedule[id]||Date.now();const r=res(id);let days=ok?Math.min(30,Math.max(1,(r.correct||1)*2)):0;state.schedule[id]=Date.now()+days*86400000}
 function stats(){
- let c=0,w=0;Object.values(state.results).forEach(x=>{c+=x.correct||0;w+=x.wrong||0});
- $("#statTotal").textContent=cards.length;$("#statWrong").textContent=cards.filter(x=>result(x.id).wrong>0).length;
- $("#statCorrect").textContent=(c+w?Math.round(c/(c+w)*100):0)+"%";$("#settingsTotal").textContent=cards.length+"개";
+ let co=0,wr=0;Object.values(state.results).forEach(x=>{co+=x.correct||0;wr+=x.wrong||0});
+ $("#statTotal").textContent=cards.length;$("#statWrong").textContent=cards.filter(c=>res(c.id).wrong>0&&!state.dismissedWrong.includes(c.id)).length;
+ $("#statRate").textContent=(co+wr?Math.round(co/(co+wr)*100):0)+"%";$("#settingsTotal").textContent=cards.length+"개";
+ $("#dueToday").textContent=state.daily;$("#dueCount").textContent=cards.filter(due).length+"개";
 }
-function showView(id,title){
- $$(".view").forEach(v=>v.classList.toggle("active",v.id===id));
- $$(".bottom-nav button[data-view]").forEach(b=>b.classList.toggle("active",b.dataset.view===id));
- $("#pageTitle").textContent=title||({homeView:"오늘의 학습",listView:"전체 카드",wrongView:"오답노트",settingsView:"설정"}[id]||"문맥 시험");
- if(id==="listView") renderList(); if(id==="wrongView") renderWrong(); window.scrollTo(0,0)
-}
-function categories(){
- const map=new Map(cards.map(c=>[c.category,c.categoryName]));
- $("#categoryChips").innerHTML=[...map].map(([k,v])=>`<button class="chip" data-cat="${k}">${v}</button>`).join("");
+function showView(id,title){$$(".view").forEach(v=>v.classList.toggle("active",v.id===id));$$(".bottom-nav button[data-view]").forEach(b=>b.classList.toggle("active",b.dataset.view===id));
+ $("#pageTitle").textContent=title||({homeView:"오늘의 학습",listView:"전체 카드",wrongView:"오답노트",statsView:"학습 통계",settingsView:"설정",mockView:"실전 모의시험"}[id]||"문맥 시험");
+ if(id==="listView")renderList();if(id==="wrongView")renderWrong();if(id==="statsView")renderStats();window.scrollTo(0,0)}
+function categories(){const map=new Map(cards.map(c=>[c.category,c.categoryName]));$("#categoryChips").innerHTML=[...map].map(([k,v])=>`<button class="chip" data-cat="${k}">${v}</button>`).join("");
  $("#categoryFilter").innerHTML='<option value="all">전체 카테고리</option>'+[...map].map(([k,v])=>`<option value="${k}">${v}</option>`).join("");
- $$(".chip").forEach(b=>b.onclick=()=>startQuiz(cards.filter(c=>c.category===b.dataset.cat),20,"category"));
-}
+ $$(".chip").forEach(b=>b.onclick=()=>startQuiz(cards.filter(c=>c.category===b.dataset.cat),state.daily,"category"))}
 function shuffle(a){return [...a].sort(()=>Math.random()-.5)}
-function startQuiz(pool,count=20,mode="all"){
- if(!pool.length){alert("해당 카드가 아직 없어요.");return}
- quizMode=mode;quiz=shuffle(pool).slice(0,Math.min(count,pool.length));qIndex=0;showView("quizView","문맥 시험");renderQuiz()
-}
-function renderQuiz(){
- const c=quiz[qIndex];if(!c)return;revealed=false;
- $("#quizCategory").textContent=c.categoryName;$("#quizCount").textContent=`${qIndex+1}/${quiz.length}`;
- $("#progressBar").style.width=`${(qIndex+1)/quiz.length*100}%`;
- $("#koreanSentence").innerHTML=markText(c);$("#answerWord").textContent=c.answer;
- $("#englishSentence").textContent=c.english;$("#answerNote").textContent=c.note;
- $("#answerArea").classList.add("hidden");$("#gradeRow").classList.add("hidden");$("#revealBtn").classList.remove("hidden");
- $("#favoriteBtn").classList.toggle("on",state.favorites.includes(c.id));$("#favoriteBtn").textContent=state.favorites.includes(c.id)?"★":"☆";
-}
-function reveal(){revealed=true;$("#answerArea").classList.remove("hidden");$("#gradeRow").classList.remove("hidden");$("#revealBtn").classList.add("hidden")}
-function grade(ok){
- const c=quiz[qIndex];state.results[c.id]=result(c.id);state.results[c.id][ok?"correct":"wrong"]++;
- if(ok&&quizMode==="wrong"&&!state.dismissedWrong.includes(c.id)){
-   if(confirm("이 카드를 오답 복습 목록에서 제거할까요?\n틀린 횟수 기록은 자주 틀린 순에 그대로 유지됩니다.")){
-     state.dismissedWrong.push(c.id);
-   }
- }
- save();stats(); if(qIndex<quiz.length-1){qIndex++;renderQuiz()}else{alert("시험이 끝났어요!");showView("homeView")}
-}
-function listHTML(arr){return arr.map(c=>{const r=result(c.id);return `<article class="list-card">
- <div class="top"><small>${c.categoryName}</small><div>${state.favorites.includes(c.id)?"★ ":""}${r.wrong?`<span class="badge-wrong">오답 ${r.wrong}</span>`:""}</div></div>
- <p>${markText(c)}</p><b>${c.answer}</b><div class="eng">${c.english}</div></article>`}).join("")}
-function renderList(){
- const q=$("#searchInput").value.trim().toLowerCase(),cat=$("#categoryFilter").value,st=$("#statusFilter").value;
- const arr=cards.filter(c=>(cat==="all"||c.category===cat)&&(!q||[c.korean,c.target,c.answer,c.english].join(" ").toLowerCase().includes(q))&&
- (st==="all"||(st==="wrong"&&result(c.id).wrong>0)||(st==="favorite"&&state.favorites.includes(c.id))||(st==="unseen"&&!state.results[c.id])));
- $("#listCount").textContent=`${arr.length}개 표현`;$("#cardList").innerHTML=listHTML(arr)
-}
-function renderWrong(){
- const arr=cards.filter(c=>result(c.id).wrong>0&&!state.dismissedWrong.includes(c.id)).sort((a,b)=>result(b.id).wrong-result(a.id).wrong);
- $("#wrongEmpty").classList.toggle("hidden",arr.length>0);$("#wrongContent").classList.toggle("hidden",!arr.length);
- $("#wrongTotal").textContent=arr.length+"개";$("#wrongList").innerHTML=listHTML(arr)
-}
-$$(".bottom-nav button[data-view]").forEach(b=>b.onclick=()=>showView(b.dataset.view));
-$("#navQuiz").onclick=()=>startQuiz(cards,20,"all");$("#startDaily").onclick=()=>startQuiz(cards,20,"daily");
-$$(".quick").forEach(b=>b.onclick=()=>{let p=cards;if(b.dataset.mode==="wrong")p=cards.filter(c=>result(c.id).wrong>0&&!state.dismissedWrong.includes(c.id));
- if(b.dataset.mode==="favorite")p=cards.filter(c=>state.favorites.includes(c.id));
- if(b.dataset.mode==="hard")p=[...cards].sort((a,b)=>result(b.id).wrong-result(a.id).wrong).filter(c=>result(c.id).wrong>0);
- startQuiz(p,20,b.dataset.mode)});
-$("#seeAllCategories").onclick=()=>showView("listView");
-$("#quizBack").onclick=()=>showView("homeView");$("#revealBtn").onclick=reveal;$("#flashcard").onclick=e=>{if(!revealed&&e.target.id!=="favoriteBtn")reveal()};
-$("#correctBtn").onclick=()=>grade(true);$("#wrongBtn").onclick=()=>grade(false);
+function startQuiz(pool,count=20,mode="all"){if(!pool.length){alert("해당 카드가 없어요.");return}quizMode=mode;quiz=(mode==="hard"?pool:shuffle(pool)).slice(0,Math.min(count,pool.length));qIndex=0;showView("quizView","문맥 시험");renderQuiz()}
+function renderQuiz(){const c=quiz[qIndex];revealed=false;$("#quizCategory").textContent=c.categoryName;$("#quizCount").textContent=`${qIndex+1}/${quiz.length}`;$("#progressBar").style.width=`${(qIndex+1)/quiz.length*100}%`;
+ $("#koreanSentence").innerHTML=mark(c);$("#answerWord").textContent=c.answer;$("#englishSentence").textContent=c.english;$("#answerNote").textContent=c.note;
+ $("#answerArea").classList.add("hidden");$("#gradeRow").classList.add("hidden");$("#speechBox").classList.add("hidden");$("#revealBtn").classList.remove("hidden");
+ const fav=state.favorites.includes(c.id);$("#favoriteBtn").classList.toggle("on",fav);$("#favoriteBtn").textContent=fav?"★":"☆"}
+function reveal(){revealed=true;$("#answerArea").classList.remove("hidden");$("#gradeRow").classList.remove("hidden");$("#revealBtn").classList.add("hidden");if(state.autoSpeech)speak(quiz[qIndex].answer)}
+function speak(text){if("speechSynthesis"in window){speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(text);u.lang="en-US";u.rate=.88;speechSynthesis.speak(u)}}
+function grade(ok){const c=quiz[qIndex];state.results[c.id]=res(c.id);state.results[c.id][ok?"correct":"wrong"]++;updateSchedule(c.id,ok);recordStudy();
+ if(ok&&quizMode==="wrong"&&!state.dismissedWrong.includes(c.id)&&confirm("오답 복습 목록에서 제거할까요?\n틀린 횟수는 '자주 틀린 순'에 계속 유지됩니다."))state.dismissedWrong.push(c.id);
+ save();stats();if(qIndex<quiz.length-1){qIndex++;renderQuiz()}else{alert("학습이 끝났어요.");showView("homeView")}}
+function listHTML(arr,wrongMode=false){return arr.slice(0,500).map(c=>{const r=res(c.id);return `<article class="list-card"><div class="top"><small>${c.categoryName}</small><div>${state.favorites.includes(c.id)?"★ ":""}${r.wrong?`<span class="badge">오답 ${r.wrong}</span>`:""}</div></div><p>${mark(c)}</p><b>${c.answer}</b><div class="eng">${c.english}</div>${wrongMode?`<button class="remove-wrong" data-remove="${c.id}">오답 목록에서 제거</button>`:""}</article>`}).join("")}
+function renderList(){const q=$("#searchInput").value.trim().toLowerCase(),cat=$("#categoryFilter").value,st=$("#statusFilter").value;const arr=cards.filter(c=>(cat==="all"||c.category===cat)&&(!q||[c.korean,c.target,c.answer,c.english].join(" ").toLowerCase().includes(q))&&(st==="all"||(st==="wrong"&&res(c.id).wrong>0&&!state.dismissedWrong.includes(c.id))||(st==="favorite"&&state.favorites.includes(c.id))||(st==="unseen"&&!state.results[c.id])||(st==="due"&&due(c))));$("#listCount").textContent=`${arr.length}개 표현${arr.length>500?" · 화면에는 500개까지 표시":""}`;$("#cardList").innerHTML=listHTML(arr)}
+function renderWrong(){const arr=cards.filter(c=>res(c.id).wrong>0&&!state.dismissedWrong.includes(c.id)).sort((a,b)=>res(b.id).wrong-res(a.id).wrong);$("#wrongEmpty").classList.toggle("hidden",arr.length>0);$("#wrongContent").classList.toggle("hidden",!arr.length);$("#wrongTotal").textContent=arr.length+"개";$("#wrongList").innerHTML=listHTML(arr,true);$$("[data-remove]").forEach(b=>b.onclick=()=>{state.dismissedWrong.push(+b.dataset.remove);save();renderWrong();stats()})}
+function streak(){const ds=[...new Set(state.studyDates)].sort().reverse();let n=0,d=new Date();for(const x of ds){if(x===d.toISOString().slice(0,10)){n++;d.setDate(d.getDate()-1)}else if(n===0){d.setDate(d.getDate()-1);if(x===d.toISOString().slice(0,10)){n++;d.setDate(d.getDate()-1)}else break}else break}return n}
+function renderStats(){let co=0,wr=0,learned=Object.keys(state.results).length;Object.values(state.results).forEach(x=>{co+=x.correct||0;wr+=x.wrong||0});$("#learnedCount").textContent=learned;$("#totalCorrect").textContent=co;$("#totalWrong").textContent=wr;$("#streak").textContent=streak()+"일";$("#dueCount").textContent=cards.filter(due).length+"개";
+ const map=new Map(cards.map(c=>[c.category,c.categoryName]));$("#categoryStats").innerHTML=[...map].map(([k,v])=>{const all=cards.filter(c=>c.category===k),done=all.filter(c=>state.results[c.id]).length,p=Math.round(done/all.length*100);return `<div class="cat-stat"><span>${v}</span><b>${p}%</b></div><div class="cat-bar"><i style="width:${p}%"></i></div>`}).join("")}
+function speechInput(){const SR=window.SpeechRecognition||window.webkitSpeechRecognition;if(!SR){alert("이 기기에서는 브라우저 음성 인식을 지원하지 않아요. 직접 말한 뒤 정답을 확인해 주세요.");return}const r=new SR();r.lang="en-US";r.interimResults=true;$("#speechBox").classList.remove("hidden");$("#speechText").textContent="듣는 중...";r.onresult=e=>{$("#speechText").textContent=[...e.results].map(x=>x[0].transcript).join(" ")};r.onerror=()=>$("#speechText").textContent="인식하지 못했어요. 다시 시도해 주세요.";r.start()}
+function startMock(){mockIndex=0;showView("mockView");renderMock()}
+function renderMock(){const m=mockQuestions[mockIndex];$("#mockCount").textContent=`${mockIndex+1}/${mockQuestions.length}`;$("#mockQuestion").textContent=m.q;$("#mockGuide").textContent=m.g;resetTimer();$("#playback").classList.add("hidden");$("#recordBtn").textContent="● 녹음 시작"}
+function resetTimer(){clearInterval(timerId);timeLeft=90;$("#mockTimer").textContent="01:30"}
+function runTimer(){clearInterval(timerId);timerId=setInterval(()=>{timeLeft--;$("#mockTimer").textContent=`${String(Math.floor(timeLeft/60)).padStart(2,"0")}:${String(timeLeft%60).padStart(2,"0")}`;if(timeLeft<=0){clearInterval(timerId);stopRecording()}},1000)}
+async function toggleRecording(){if(mediaRecorder&&mediaRecorder.state==="recording"){stopRecording();return}try{const stream=await navigator.mediaDevices.getUserMedia({audio:true});chunks=[];mediaRecorder=new MediaRecorder(stream);mediaRecorder.ondataavailable=e=>chunks.push(e.data);mediaRecorder.onstop=()=>{const blob=new Blob(chunks,{type:"audio/webm"});$("#playback").src=URL.createObjectURL(blob);$("#playback").classList.remove("hidden");stream.getTracks().forEach(t=>t.stop())};mediaRecorder.start();$("#recordBtn").textContent="■ 녹음 종료";runTimer()}catch(e){alert("마이크 권한이 필요합니다.")}}
+function stopRecording(){if(mediaRecorder&&mediaRecorder.state==="recording"){mediaRecorder.stop();$("#recordBtn").textContent="● 다시 녹음";clearInterval(timerId)}}
+$$(".bottom-nav button[data-view]").forEach(b=>b.onclick=()=>showView(b.dataset.view));$("#navQuiz").onclick=()=>startQuiz(cards,state.daily,"all");$("#startDaily").onclick=()=>startQuiz(cards,state.daily,"daily");$("#startSRS").onclick=()=>startQuiz(cards.filter(due),state.daily,"srs");
+$$(".quick").forEach(b=>b.onclick=()=>{let p=cards,m=b.dataset.mode;if(m==="wrong")p=cards.filter(c=>res(c.id).wrong>0&&!state.dismissedWrong.includes(c.id));if(m==="favorite")p=cards.filter(c=>state.favorites.includes(c.id));if(m==="hard")p=[...cards].filter(c=>res(c.id).wrong>0).sort((a,b)=>res(b.id).wrong-res(a.id).wrong);if(m==="unseen")p=cards.filter(c=>!state.results[c.id]);startQuiz(p,state.daily,m)});
+$("#mockQuick").onclick=startMock;$("#seeAll").onclick=()=>showView("listView");$("#quizBack").onclick=()=>showView("homeView");$("#revealBtn").onclick=reveal;$("#micBtn").onclick=speechInput;$("#speakBtn").onclick=()=>speak(quiz[qIndex].answer);$("#correctBtn").onclick=()=>grade(true);$("#wrongBtn").onclick=()=>grade(false);
 $("#prevBtn").onclick=()=>{if(qIndex>0){qIndex--;renderQuiz()}};$("#nextBtn").onclick=()=>{if(qIndex<quiz.length-1){qIndex++;renderQuiz()}};
-$("#favoriteBtn").onclick=e=>{e.stopPropagation();const id=quiz[qIndex].id;state.favorites=state.favorites.includes(id)?state.favorites.filter(x=>x!==id):[...state.favorites,id];save();renderQuiz()};
-$("#searchInput").oninput=renderList;$("#categoryFilter").onchange=renderList;$("#statusFilter").onchange=renderList;
-$("#startWrong").onclick=()=>startQuiz(cards.filter(c=>result(c.id).wrong>0&&!state.dismissedWrong.includes(c.id)),50,"wrong");
+$("#favoriteBtn").onclick=()=>{const id=quiz[qIndex].id;state.favorites=state.favorites.includes(id)?state.favorites.filter(x=>x!==id):[...state.favorites,id];save();renderQuiz()};
+$("#searchInput").oninput=renderList;$("#categoryFilter").onchange=renderList;$("#statusFilter").onchange=renderList;$("#startWrong").onclick=()=>startQuiz(cards.filter(c=>res(c.id).wrong>0&&!state.dismissedWrong.includes(c.id)),50,"wrong");
 $("#themeBtn").onclick=()=>{state.dark=!state.dark;document.body.classList.toggle("dark",state.dark);save()};
-$("#exportBtn").onclick=()=>{const blob=new Blob([JSON.stringify(state,null,2)],{type:"application/json"});const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="opic-context-backup.json";a.click()};
-$("#importInput").onchange=e=>{const f=e.target.files[0];if(!f)return;const rd=new FileReader();rd.onload=()=>{try{Object.assign(state,JSON.parse(rd.result));save();location.reload()}catch{alert("올바른 백업 파일이 아니에요.")}};rd.readAsText(f)};
-$("#resetBtn").onclick=()=>{if(confirm("학습 기록과 오답, 즐겨찾기를 모두 초기화할까요?")){localStorage.removeItem("opic-state");location.reload()}};
-if(state.dark)document.body.classList.add("dark");categories();stats();
-if("serviceWorker"in navigator)navigator.serviceWorker.register("sw.js");
+$("#dailyRange").value=state.daily;$("#dailyValue").textContent=state.daily;$("#dailyRange").oninput=e=>{$("#dailyValue").textContent=e.target.value;state.daily=+e.target.value;save();stats()};
+$("#autoSpeechText").textContent=state.autoSpeech?"켜짐":"꺼짐";$("#autoSpeechBtn").onclick=()=>{state.autoSpeech=!state.autoSpeech;$("#autoSpeechText").textContent=state.autoSpeech?"켜짐":"꺼짐";save()};
+$("#exportBtn").onclick=()=>{const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([JSON.stringify(state,null,2)],{type:"application/json"}));a.download="opic-context-final-backup.json";a.click()};
+$("#importInput").onchange=e=>{const f=e.target.files[0];if(!f)return;const rd=new FileReader();rd.onload=()=>{try{localStorage.setItem("opic-final-state",JSON.stringify(JSON.parse(rd.result)));location.reload()}catch{alert("올바른 백업 파일이 아니에요.")}};rd.readAsText(f)};
+$("#resetBtn").onclick=()=>{if(confirm("학습 기록을 모두 초기화할까요?")){localStorage.removeItem("opic-final-state");location.reload()}};
+$("#recordBtn").onclick=toggleRecording;$("#mockPrev").onclick=()=>{if(mockIndex>0){mockIndex--;renderMock()}};$("#mockNext").onclick=()=>{if(mockIndex<mockQuestions.length-1){mockIndex++;renderMock()}else alert("모의시험이 끝났어요.")};$("#mockExit").onclick=()=>{stopRecording();showView("homeView")};
+if(state.dark)document.body.classList.add("dark");categories();stats();if("serviceWorker"in navigator)navigator.serviceWorker.register("sw.js");
