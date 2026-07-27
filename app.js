@@ -1,10 +1,10 @@
 const cards=window.OPIC_CARDS, mockQuestions=window.MOCK_QUESTIONS;
 const defaultState={results:{},favorites:[],dismissedWrong:[],schedule:{},dark:false,daily:20,autoSpeech:false,studyDates:[]};
-const state=Object.assign({},defaultState,JSON.parse(localStorage.getItem("opic-final-state")||"{}"));
+const state=Object.assign({},defaultState,JSON.parse(localStorage.getItem("context-speak-premium-state")||"{}"));
 state.results=state.results||{};state.favorites=state.favorites||[];state.dismissedWrong=state.dismissedWrong||[];state.schedule=state.schedule||{};state.studyDates=state.studyDates||[];
 let quiz=[],qIndex=0,quizMode="all",revealed=false,mediaRecorder=null,chunks=[],mockIndex=0,timerId=null,timeLeft=90;
 const $=s=>document.querySelector(s),$$=s=>document.querySelectorAll(s),today=()=>new Date().toISOString().slice(0,10);
-function save(){localStorage.setItem("opic-final-state",JSON.stringify(state))}
+function save(){localStorage.setItem("context-speak-premium-state",JSON.stringify(state))}
 function res(id){return state.results[id]||{correct:0,wrong:0}}
 function mark(c){return c.korean.replace(c.target,`<span class="target">${c.target}</span>`)}
 function due(c){return !state.schedule[c.id]||state.schedule[c.id]<=Date.now()}
@@ -55,8 +55,8 @@ $("#searchInput").oninput=renderList;$("#categoryFilter").onchange=renderList;$(
 $("#themeBtn").onclick=()=>{state.dark=!state.dark;document.body.classList.toggle("dark",state.dark);save()};
 $("#dailyRange").value=state.daily;$("#dailyValue").textContent=state.daily;$("#dailyRange").oninput=e=>{$("#dailyValue").textContent=e.target.value;state.daily=+e.target.value;save();stats()};
 $("#autoSpeechText").textContent=state.autoSpeech?"켜짐":"꺼짐";$("#autoSpeechBtn").onclick=()=>{state.autoSpeech=!state.autoSpeech;$("#autoSpeechText").textContent=state.autoSpeech?"켜짐":"꺼짐";save()};
-$("#exportBtn").onclick=()=>{const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([JSON.stringify(state,null,2)],{type:"application/json"}));a.download="opic-context-final-backup.json";a.click()};
-$("#importInput").onchange=e=>{const f=e.target.files[0];if(!f)return;const rd=new FileReader();rd.onload=()=>{try{localStorage.setItem("opic-final-state",JSON.stringify(JSON.parse(rd.result)));location.reload()}catch{alert("올바른 백업 파일이 아니에요.")}};rd.readAsText(f)};
-$("#resetBtn").onclick=()=>{if(confirm("학습 기록을 모두 초기화할까요?")){localStorage.removeItem("opic-final-state");location.reload()}};
+$("#exportBtn").onclick=()=>{const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([JSON.stringify(state,null,2)],{type:"application/json"}));a.download="context-speak-premium-backup.json";a.click()};
+$("#importInput").onchange=e=>{const f=e.target.files[0];if(!f)return;const rd=new FileReader();rd.onload=()=>{try{localStorage.setItem("context-speak-premium-state",JSON.stringify(JSON.parse(rd.result)));location.reload()}catch{alert("올바른 백업 파일이 아니에요.")}};rd.readAsText(f)};
+$("#resetBtn").onclick=()=>{if(confirm("학습 기록을 모두 초기화할까요?")){localStorage.removeItem("context-speak-premium-state");location.reload()}};
 $("#recordBtn").onclick=toggleRecording;$("#mockPrev").onclick=()=>{if(mockIndex>0){mockIndex--;renderMock()}};$("#mockNext").onclick=()=>{if(mockIndex<mockQuestions.length-1){mockIndex++;renderMock()}else alert("모의시험이 끝났어요.")};$("#mockExit").onclick=()=>{stopRecording();showView("homeView")};
 if(state.dark)document.body.classList.add("dark");categories();stats();if("serviceWorker"in navigator)navigator.serviceWorker.register("sw.js");
